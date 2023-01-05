@@ -1,15 +1,15 @@
+#include <ctype.h>
 #include <linux/limits.h>
 #include <replace/args.h>
 #include <replace/iter.h>
 #include <replace/macros.h>
 #include <replace/replace.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <text/text.h>
 #include <unistd.h>
-#include <stddef.h>
-#include <ctype.h>
 
 static int get_extension(const char *path, char *out) {
   if (!path)
@@ -28,8 +28,9 @@ static int get_extension(const char *path, char *out) {
 }
 
 static bool can_replace_file(const char *path) {
-  if (strstr(path, ".git/") != 0) return false;
-  
+  if (strstr(path, ".git/") != 0)
+    return false;
+
   char ext[32];
   memset(&ext[0], 0, 32 * sizeof(char));
 
@@ -39,7 +40,6 @@ static bool can_replace_file(const char *path) {
         strcmp(ext, ".so") == 0 || strcmp(ext, ".dll") == 0)
       return false;
   }
-
 
   FILE *fp = fopen(path, "rb");
   if (!fp)
@@ -94,7 +94,7 @@ char *replace_get_file_contents(const char *filepath) {
   return buffer;
 }
 
-static bool prompt_user(const char *message, bool* all) {
+static bool prompt_user(const char *message, bool *all) {
   printf("%s (Y/N/A)?: ", message);
   char ans = 0;
   scanf("%c", &ans);
@@ -104,15 +104,15 @@ static bool prompt_user(const char *message, bool* all) {
   return ans == 'y' || ans == 'Y';
 }
 
-static void replace_callback(const char *path, ReplaceState* state) {
+static void replace_callback(const char *path, ReplaceState *state) {
   ReplaceArgs args = state->args;
-  
+
   if (!can_replace_file(path)) {
     printf("Skipping `%s`\n", path);
     return;
   }
 
-  char* contents = replace_get_file_contents(path);
+  char *contents = replace_get_file_contents(path);
 
   if (!contents) {
     printf("Skipping `%s` (failed to open.)\n", path);
@@ -120,21 +120,22 @@ static void replace_callback(const char *path, ReplaceState* state) {
   }
 
   char message[PATH_MAX];
-  sprintf(message, "Replace contents of `%s`? (pattern=`%s`)", path, args.pattern);
+  sprintf(message, "Replace contents of `%s`? (pattern=`%s`)", path,
+          args.pattern);
   if (state->all || prompt_user(message, &state->all)) {
 
     if (!strstr(contents, args.pattern)) {
       printf("Pattern not found in `%s`.\n", path);
       return;
     }
-    char* next_contents = text_replace(contents, args.pattern, args.repl);
+    char *next_contents = text_replace(contents, args.pattern, args.repl);
 
     if (!next_contents) {
       printf("Failed to replace contents of `%s`.\n", path);
       return;
     }
 
-    FILE* fp = fopen(path, "w");
+    FILE *fp = fopen(path, "w");
     if (!fp) {
       fprintf(stderr, "Failed to open `%s`\n", path);
       return;
@@ -150,7 +151,7 @@ static void replace_callback(const char *path, ReplaceState* state) {
   free(contents);
 }
 
-int replace(ReplaceState* state) {
+int replace(ReplaceState *state) {
   ReplaceArgs args = state->args;
   if (!args.path) {
     fprintf(stderr, "No path specified.\n");
