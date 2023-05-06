@@ -11,6 +11,13 @@
 #include <text/text.h>
 #include <unistd.h>
 
+static char last_char(const char *value) {
+  if (!value) return 0;
+  int64_t len = strlen(value);
+  if (!len) return 0;
+  return value[len-1];
+}
+
 static int get_extension(const char *path, char *out) {
   if (!path)
     return 0;
@@ -41,6 +48,9 @@ static bool can_replace_file(const char *path) {
       return false;
   }
 
+  if (last_char(path) == '~') return false;
+  if (strstr(path, "#") != 0) return false;
+
   FILE *fp = fopen(path, "rb");
   if (!fp)
     return false;
@@ -69,6 +79,8 @@ static bool can_replace_file(const char *path) {
       return false;
     }
   }
+
+  fclose(fp);
 
   return true;
 }
@@ -101,7 +113,7 @@ static bool prompt_user(const char *message, bool *all) {
   fflush(stdin);
 
   *all = (ans == 'a' || ans == 'A');
-  return ans == 'y' || ans == 'Y';
+  return (ans == 'y' || ans == 'Y') || (*all == true);
 }
 
 static void replace_callback(const char *path, ReplaceState *state) {
@@ -119,16 +131,18 @@ static void replace_callback(const char *path, ReplaceState *state) {
     return;
   }
 
+  if (!strstr(contents, args.pattern)) {
+      return;
+  }
+
   char message[PATH_MAX];
   sprintf(message, "Replace contents of `%s`? (pattern=`%s`)", path,
           args.pattern);
+  
   if (state->all || prompt_user(message, &state->all)) {
 
-    if (!strstr(contents, args.pattern)) {
-      printf("Pattern not found in `%s`.\n", path);
-      return;
-    }
-    char *next_contents = text_replace(contents, args.pattern, args.repl);
+
+    char *next_contents = text_replace_all(contents, args.pattern, args.repl);
 
     if (!next_contents) {
       printf("Failed to replace contents of `%s`.\n", path);
@@ -146,6 +160,8 @@ static void replace_callback(const char *path, ReplaceState *state) {
     fclose(fp);
 
     printf("Successfully replaced contents of `%s`\n", path);
+
+    free(next_contents);
   }
 
   free(contents);
